@@ -90,15 +90,14 @@ fun GridWallScreen(
             }
         }
 
-        // Estados declarados sin delegación "by" para evitar errores de compilación en GitHub
+        // Estados sin delegación "by" para evitar fallos en GitHub Actions
         val focusState = remember(widthPx, heightPx) { mutableStateOf(Offset(widthPx / 2f, heightPx / 2f)) }
         var focus by focusState
 
         val isDraggingState = remember { mutableStateOf(false) }
-        var isDragging by isDraggingState
 
-        LaunchedEffect(isDragging, autoMoveEnabled, widthPx, heightPx) {
-            if (isDragging || !autoMoveEnabled) return@LaunchedEffect
+        LaunchedEffect(isDraggingState.value, autoMoveEnabled, widthPx, heightPx) {
+            if (isDraggingState.value || !autoMoveEnabled) return@LaunchedEffect
             val cx = widthPx / 2f
             val cy = heightPx / 2f
             val radius = min(widthPx, heightPx) * 0.18f
@@ -302,9 +301,9 @@ fun GridWallScreen(
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectDragGestures(
-                        onDragStart = { isDragging = true },
-                        onDragEnd = { isDragging = false },
-                        onDragCancel = { isDragging = false }
+                        onDragStart = { isDraggingState.value = true },
+                        onDragEnd = { isDraggingState.value = false },
+                        onDragCancel = { isDraggingState.value = false }
                     ) { change, _ ->
                         change.consume()
                         focus = change.position
