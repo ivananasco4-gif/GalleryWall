@@ -90,10 +90,8 @@ fun GridWallScreen(
             }
         }
 
-        // Estados sin delegación "by" para evitar fallos en GitHub Actions
+        // Manejo de estados totalmente explícitos con .value (sin delegación "by")
         val focusState = remember(widthPx, heightPx) { mutableStateOf(Offset(widthPx / 2f, heightPx / 2f)) }
-        var focus by focusState
-
         val isDraggingState = remember { mutableStateOf(false) }
 
         LaunchedEffect(isDraggingState.value, autoMoveEnabled, widthPx, heightPx) {
@@ -105,7 +103,7 @@ fun GridWallScreen(
             while (true) {
                 val now = withFrameNanos { it }
                 val t = (now - start) / 1_000_000_000f
-                focus = Offset(
+                focusState.value = Offset(
                     x = cx + radius * cos(t * 0.35f),
                     y = cy + radius * sin(t * 0.5f)
                 )
@@ -118,9 +116,9 @@ fun GridWallScreen(
 
         val gridOffX = (cols * cellPx - widthPx) / 2f
         val gridOffY = (rows * cellPx - heightPx) / 2f
-        val selectedIndex = remember(focus, cols, rows, cellPx) {
-            val col = ((focus.x + gridOffX) / cellPx).toInt().coerceIn(0, cols - 1)
-            val row = ((focus.y + gridOffY) / cellPx).toInt().coerceIn(0, rows - 1)
+        val selectedIndex = remember(focusState.value, cols, rows, cellPx) {
+            val col = ((focusState.value.x + gridOffX) / cellPx).toInt().coerceIn(0, cols - 1)
+            val row = ((focusState.value.y + gridOffY) / cellPx).toInt().coerceIn(0, rows - 1)
             val idx = row * cols + col
             if (photos.isNotEmpty()) ((idx % photos.size) + photos.size) % photos.size else -1
         }
@@ -137,7 +135,7 @@ fun GridWallScreen(
                 for (col in 0 until cols) {
                     val restX = col * cellPx + cellPx / 2f - gridOffsetX
                     val restY = row * cellPx + cellPx / 2f - gridOffsetY
-                    val d = hypot((restX - focus.x).toDouble(), (restY - focus.y).toDouble()).toFloat()
+                    val d = hypot((restX - focusState.value.x).toDouble(), (restY - focusState.value.y).toDouble()).toFloat()
 
                     if (d >= lensRadius) {
                         val bmpIndex = if (thumbnails.isNotEmpty()) (row * cols + col) % thumbnails.size else -1
@@ -173,14 +171,14 @@ fun GridWallScreen(
                 val localScale = 1f + (maxScale - 1f) * falloff
                 val swirl = swirlMax * falloff
 
-                val dx = restX - focus.x
-                val dy = restY - focus.y
+                val dx = restX - focusState.value.x
+                val dy = restY - focusState.value.y
                 val angle = atan2(dy.toDouble(), dx.toDouble()).toFloat() + swirl
                 val baseDist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
                 val scaledDist = baseDist * localScale
 
-                val drawX = focus.x + cos(angle) * scaledDist
-                val drawY = focus.y + sin(angle) * scaledDist
+                val drawX = focusState.value.x + cos(angle) * scaledDist
+                val drawY = focusState.value.y + sin(angle) * scaledDist
                 val size = cellPx * localScale * 0.92f
 
                 if (bmp != null) {
@@ -212,7 +210,7 @@ fun GridWallScreen(
                 for (col in 0 until cols) {
                     val restX = col * cellPx + cellPx / 2f - gridOffsetX
                     val restY = row * cellPx + cellPx / 2f - gridOffsetY
-                    val d = hypot((restX - focus.x).toDouble(), (restY - focus.y).toDouble()).toFloat()
+                    val d = hypot((restX - focusState.value.x).toDouble(), (restY - focusState.value.y).toDouble()).toFloat()
 
                     if (d >= skirtRadius) {
                         val bmpIndex = if (thumbnails.isNotEmpty()) (row * cols + col) % thumbnails.size else -1
@@ -247,8 +245,8 @@ fun GridWallScreen(
                 val scale = 1f + (maxElevScale - 1f) * influence
                 val lift = maxLift * influence
 
-                val dx = restX - focus.x
-                val dy = restY - focus.y
+                val dx = restX - focusState.value.x
+                val dy = restY - focusState.value.y
                 val dlen = hypot(dx.toDouble(), dy.toDouble()).toFloat().coerceAtLeast(1f)
                 val skirtT = ((skirtRadius - dist) / (skirtRadius - bumpRadius)).coerceIn(0f, 1f)
                 val drapePush = if (dist > bumpRadius) skirtT * skirtT * cellPx * 0.35f else 0f
@@ -306,12 +304,12 @@ fun GridWallScreen(
                         onDragCancel = { isDraggingState.value = false }
                     ) { change, _ ->
                         change.consume()
-                        focus = change.position
+                        focusState.value = change.position
                     }
                 }
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onTap = { pos -> focus = pos },
+                        onTap = { pos -> focusState.value = pos },
                         onDoubleTap = { selectedPhoto?.let(onOpenPhoto) }
                     )
                 }
