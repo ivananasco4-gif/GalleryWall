@@ -323,16 +323,20 @@ fun GridWallScreen(
                 }
             }
 
-            val photoName = selectedPhoto?.displayName ?: ""
-            Text(
-                text = photoName,
-                color = if (selectedPhoto != null) Color.White else Color.Transparent,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Start,
-                modifier = Modifier
-                    .padding(start = 20.dp, top = 48.dp, end = 20.dp)
-            )
+            PhotoNameOverlay(selectedPhoto?.displayName)
         }
     }
+}
+
+@Composable
+private fun PhotoNameOverlay(name: String?) {
+    Text(
+        text = name ?: "",
+        color = if (name != null) Color.White else Color.Transparent,
+        fontSize = 20.sp,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Start,
+        modifier = Modifier
+            .padding(start = 20.dp, top = 48.dp, end = 20.dp)
+    )
 }
