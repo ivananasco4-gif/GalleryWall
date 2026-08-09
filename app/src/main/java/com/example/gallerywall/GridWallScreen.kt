@@ -296,46 +296,43 @@ fun GridWallScreen(
             }
         }
 
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { isDragging = true },
-                        onDragEnd = { isDragging = false },
-                        onDragCancel = { isDragging = false }
-                    ) { change, _ ->
-                        change.consume()
-                        focus = change.position
+        Box(modifier = Modifier.fillMaxSize()) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { isDragging = true },
+                            onDragEnd = { isDragging = false },
+                            onDragCancel = { isDragging = false }
+                        ) { change, _ ->
+                            change.consume()
+                            focus = change.position
+                        }
                     }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { pos -> focus = pos },
+                            onDoubleTap = { selectedPhoto?.let(onOpenPhoto) }
+                        )
+                    }
+            ) {
+                when (mode) {
+                    InteractionMode.BURBUJA -> drawBubble()
+                    InteractionMode.ELEVACION -> drawElevation()
                 }
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { pos -> focus = pos },
-                        onDoubleTap = { selectedPhoto?.let(onOpenPhoto) }
-                    )
-                }
-        ) {
-            when (mode) {
-                InteractionMode.BURBUJA -> drawBubble()
-                InteractionMode.ELEVACION -> drawElevation()
             }
-        }
 
-        selectedPhoto?.let { photo ->
-            Box(
+            val photoName = selectedPhoto?.displayName ?: ""
+            Text(
+                text = photoName,
+                color = if (selectedPhoto != null) Color.White else Color.Transparent,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Start,
                 modifier = Modifier
                     .padding(start = 20.dp, top = 48.dp, end = 20.dp)
-            ) {
-                Text(
-                    text = photo.displayName,
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Start
-                )
-            }
+            )
         }
-        Unit
     }
 }
