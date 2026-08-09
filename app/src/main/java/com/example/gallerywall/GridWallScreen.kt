@@ -322,13 +322,13 @@ fun GridWallScreen(
             }
         }
 
-        if (selectedPhoto != null) {
+        selectedPhoto?.let { photo ->
             Box(
                 modifier = Modifier
                     .padding(start = 20.dp, top = 48.dp, end = 20.dp)
             ) {
                 Text(
-                    text = selectedPhoto.displayName,
+                    text = photo.displayName,
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -336,5 +336,6 @@ fun GridWallScreen(
                 )
             }
         }
+        Unit
     }
 }
