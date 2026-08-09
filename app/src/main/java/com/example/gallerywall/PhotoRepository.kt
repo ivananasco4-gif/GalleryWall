@@ -29,7 +29,7 @@ object PhotoRepository {
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.DATE_TAKEN
             )
-            val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC LIMIT $limit"
+            val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
 
             context.contentResolver.query(
                 collection, projection, null, null, sortOrder
@@ -38,7 +38,7 @@ object PhotoRepository {
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
                 val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
 
-                while (cursor.moveToNext()) {
+                while (cursor.moveToNext() && photos.size < limit) {
                     val id = cursor.getLong(idCol)
                     val name = cursor.getString(nameCol) ?: "Foto"
                     val date = cursor.getLong(dateCol)
