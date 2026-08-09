@@ -13,11 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -92,8 +90,12 @@ fun GridWallScreen(
             }
         }
 
-        var focus by remember(widthPx, heightPx) { mutableStateOf(Offset(widthPx / 2f, heightPx / 2f)) }
-        var isDragging by remember { mutableStateOf(false) }
+        // Estados declarados sin delegación "by" para evitar errores de compilación en GitHub
+        val focusState = remember(widthPx, heightPx) { mutableStateOf(Offset(widthPx / 2f, heightPx / 2f)) }
+        var focus by focusState
+
+        val isDraggingState = remember { mutableStateOf(false) }
+        var isDragging by isDraggingState
 
         LaunchedEffect(isDragging, autoMoveEnabled, widthPx, heightPx) {
             if (isDragging || !autoMoveEnabled) return@LaunchedEffect
