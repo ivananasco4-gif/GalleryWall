@@ -19,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -42,15 +41,10 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.hypot
-import kotlin.math.sin
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
 
-/**
- * Muro de fotos con efecto "lupa/ojo": una malla fina de miniaturas cubre toda
- * la pantalla y, alrededor del punto de foco (donde tocas o arrastras),
- * las celdas cercanas se agrandan y giran suavemente, como en el video de referencia.
- */
 @Composable
 fun GridWallScreen(
     context: Context,
@@ -60,8 +54,6 @@ fun GridWallScreen(
     mode: InteractionMode,
     onOpenPhoto: (Photo) -> Unit
 ) {
-    // Miniaturas cargadas de forma progresiva. Se reinician al cambiar el
-    // tamaño de celda porque cambia cuántas hacen falta y su resolución ideal.
     val thumbnails = remember(cellSizeDp) { mutableStateListOf<Bitmap?>() }
 
     BoxWithConstraints(
@@ -73,25 +65,20 @@ fun GridWallScreen(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
 
-        // Tamaño base de celda, controlado desde afuera (nano/pequeño/mediano/grande).
         val cellPx = with(density) { cellSizeDp.toPx() }
-        val overscan = 1.4f // margen extra para que el arrastre no muestre bordes vacíos
+        val overscan = 1.4f
         val cols = max(1, ((widthPx * overscan) / cellPx).toInt())
         val rows = max(1, ((heightPx * overscan) / cellPx).toInt())
         val cellCount = cols * rows
 
-        // Resolución de miniatura acorde al tamaño de celda (celdas grandes piden
-        // una miniatura más nítida; celdas nano piden una chiquita y rápida de decodificar).
         val thumbPx = with(density) { (cellSizeDp * 2.2f).toPx().toInt().coerceIn(48, 220) }
 
-        // Cargar miniaturas suficientes para llenar la malla (reutilizando si hay pocas fotos).
         LaunchedEffect(photos, cellCount, thumbPx) {
             if (photos.isEmpty()) return@LaunchedEffect
             val needed = min(photos.size, cellCount)
             if (thumbnails.size < needed) {
                 repeat(needed - thumbnails.size) { thumbnails.add(null) }
             }
-            // Carga con concurrencia limitada para no saturar IO.
             val chunkSize = 12
             for (start in 0 until needed step chunkSize) {
                 val end = min(start + chunkSize, needed)
@@ -105,13 +92,9 @@ fun GridWallScreen(
             }
         }
 
-        // Punto de foco (el "ojo" de la lupa), en píxeles. Solo se mueve cuando
-        // tocas o arrastras, salvo que actives "movimiento automático".
-        var focus by remember { mutableStateOf(Offset(widthPx / 2f, heightPx / 2f)) }
+        var focus by remember(widthPx, heightPx) { mutableStateOf(Offset(widthPx / 2f, heightPx / 2f)) }
         var isDragging by remember { mutableStateOf(false) }
 
-        // Deriva lenta automática del foco cuando el usuario no toca la pantalla
-        // (solo si la opción está activada; por defecto está apagada).
         LaunchedEffect(isDragging, autoMoveEnabled, widthPx, heightPx) {
             if (isDragging || !autoMoveEnabled) return@LaunchedEffect
             val cx = widthPx / 2f
@@ -130,11 +113,8 @@ fun GridWallScreen(
 
         val lensRadius = min(widthPx, heightPx) * 0.30f
         val maxScale = 4.2f
-        val swirlMax = 0.9f // radianes de giro máximo cerca del centro
+        val swirlMax = 0.9f
 
-        // Foto actualmente "seleccionada": la celda bajo el punto de foco.
-        // Usa el mismo offset de rejilla que el dibujo en el Canvas, para que
-        // coincida exactamente con el póster que aparece más grande en pantalla.
         val gridOffX = (cols * cellPx - widthPx) / 2f
         val gridOffY = (rows * cellPx - heightPx) / 2f
         val selectedIndex = remember(focus, cols, rows, cellPx) {
@@ -145,7 +125,6 @@ fun GridWallScreen(
         }
         val selectedPhoto = photos.getOrNull(selectedIndex)
 
-        // --- Modo "Burbuja": lupa/ojo con giro, la que ya teníamos. ---
         val drawBubble: DrawScope.() -> Unit = {
             val gridOffsetX = (cols * cellPx - widthPx) / 2f
             val gridOffsetY = (rows * cellPx - heightPx) / 2f
@@ -217,7 +196,6 @@ fun GridWallScreen(
             }
         }
 
-        // --- Modo "Elevación" ---
         val drawElevation: DrawScope.() -> Unit = {
             val gridOffsetX = (cols * cellPx - widthPx) / 2f
             val gridOffsetY = (rows * cellPx - heightPx) / 2f
