@@ -2,7 +2,7 @@ package com.example.gallerywall
 
 import android.content.Context
 import android.graphics.Bitmap
-import androidx.compose.foundation.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
