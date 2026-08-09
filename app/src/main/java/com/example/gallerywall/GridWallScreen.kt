@@ -46,11 +46,6 @@ import kotlin.math.sin
 import kotlin.math.max
 import kotlin.math.min
 
-/**
- * Muro de fotos con efecto "lupa/ojo": una malla fina de miniaturas cubre toda
- * la pantalla y, alrededor del punto de foco (donde tocas o arrastras),
- * las celdas cercanas se agrandan y giran suavemente, como en el video de referencia.
- */
 @Composable
 fun GridWallScreen(
     context: Context,
@@ -60,8 +55,6 @@ fun GridWallScreen(
     mode: InteractionMode,
     onOpenPhoto: (Photo) -> Unit
 ) {
-    // Miniaturas cargadas de forma progresiva. Se reinician al cambiar el
-    // tamaño de celda porque cambia cuántas hacen falta y su resolución ideal.
     val thumbnails = remember(cellSizeDp) { mutableStateListOf<Bitmap?>() }
 
     BoxWithConstraints(
@@ -73,25 +66,20 @@ fun GridWallScreen(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
 
-        // Tamaño base de celda, controlado desde afuera (nano/pequeño/mediano/grande).
         val cellPx = with(density) { cellSizeDp.toPx() }
-        val overscan = 1.4f // margen extra para que el arrastre no muestre bordes vacíos
+        val overscan = 1.4f
         val cols = max(1, ((widthPx * overscan) / cellPx).toInt())
         val rows = max(1, ((heightPx * overscan) / cellPx).toInt())
         val cellCount = cols * rows
 
-        // Resolución de miniatura acorde al tamaño de celda (celdas grandes piden
-        // una miniatura más nítida; celdas nano piden una chiquita y rápida de decodificar).
         val thumbPx = with(density) { (cellSizeDp * 2.2f).toPx().toInt().coerceIn(48, 220) }
 
-        // Cargar miniaturas suficientes para llenar la malla (reutilizando si hay pocas fotos).
         LaunchedEffect(photos, cellCount, thumbPx) {
             if (photos.isEmpty()) return@LaunchedEffect
             val needed = min(photos.size, cellCount)
             if (thumbnails.size < needed) {
                 repeat(needed - thumbnails.size) { thumbnails.add(null) }
             }
-            // Carga con concurrencia limitada para no saturar IO.
             val chunkSize = 12
             for (start in 0 until needed step chunkSize) {
                 val end = min(start + chunkSize, needed)
@@ -105,13 +93,9 @@ fun GridWallScreen(
             }
         }
 
-        // Punto de foco (el "ojo" de la lupa), en píxeles. Solo se mueve cuando
-        // tocas o arrastras, salvo que actives "movimiento automático".
         var focus by remember { mutableStateOf(Offset(widthPx / 2f, heightPx / 2f)) }
         var isDragging by remember { mutableStateOf(false) }
 
-        // Deriva lenta automática del foco cuando el usuario no toca la pantalla
-        // (solo si la opción está activada; por defecto está apagada).
         LaunchedEffect(isDragging, autoMoveEnabled, widthPx, heightPx) {
             if (isDragging || !autoMoveEnabled) return@LaunchedEffect
             val cx = widthPx / 2f
@@ -130,11 +114,8 @@ fun GridWallScreen(
 
         val lensRadius = min(widthPx, heightPx) * 0.30f
         val maxScale = 4.2f
-        val swirlMax = 0.9f // radianes de giro máximo cerca del centro
+        val swirlMax = 0.9f
 
-        // Foto actualmente "seleccionada": la celda bajo el punto de foco.
-        // Usa el mismo offset de rejilla que el dibujo en el Canvas, para que
-        // coincida exactamente con el póster que aparece más grande en pantalla.
         val gridOffX = (cols * cellPx - widthPx) / 2f
         val gridOffY = (rows * cellPx - heightPx) / 2f
         val selectedIndex = remember(focus, cols, rows, cellPx) {
@@ -145,17 +126,11 @@ fun GridWallScreen(
         }
         val selectedPhoto = photos.getOrNull(selectedIndex)
 
-        // --- Modo "Burbuja": lupa/ojo con giro, la que ya teníamos. ---
         val drawBubble: DrawScope.() -> Unit = {
             val gridOffsetX = (cols * cellPx - widthPx) / 2f
             val gridOffsetY = (rows * cellPx - heightPx) / 2f
             val restSize = cellPx * 0.92f
 
-            // El desenfoque solo empuja celdas hacia afuera del centro (nunca más
-            // allá del radio del lente), así que las celdas fuera de ese radio no
-            // se solapan entre sí ni con las de adentro: se pueden dibujar directo,
-            // en cualquier orden, sin trigonometría ni orden-Z. Esto es lo que
-            // mantiene fluido el modo Micro/Nano aunque haya miles de celdas.
             val near = ArrayList<Triple<Int, Int, Float>>(256)
 
             for (row in 0 until rows) {
@@ -184,8 +159,6 @@ fun GridWallScreen(
                 }
             }
 
-            // Solo las celdas dentro del lente (pocas, sin importar la densidad
-            // total de la malla) necesitan orden-Z y la distorsión completa.
             near.sortByDescending { it.third }
 
             for ((row, col, dist) in near) {
@@ -196,7 +169,7 @@ fun GridWallScreen(
                 val restY = row * cellPx + cellPx / 2f - gridOffsetY
 
                 val t = (dist / lensRadius).coerceIn(0f, 1f)
-                val falloff = (1f - t) * (1f - t) // caída suave, 1 en el centro, 0 en el borde del lente
+                val falloff = (1f - t) * (1f - t)
                 val localScale = 1f + (maxScale - 1f) * falloff
                 val swirl = swirlMax * falloff
 
@@ -224,14 +197,11 @@ fun GridWallScreen(
             }
         }
 
-        // --- Modo "Elevación": una sábana plana; donde tocas, algo del tamaño
-        // de una foto se levanta como un domo 3D, con luz y sombra dándole
-        // volumen. No gira: las fotos quedan derechas. ---
         val drawElevation: DrawScope.() -> Unit = {
             val gridOffsetX = (cols * cellPx - widthPx) / 2f
             val gridOffsetY = (rows * cellPx - heightPx) / 2f
-            val bumpRadius = cellPx * 1.7f        // tamaño del domo elevado
-            val skirtRadius = bumpRadius * 1.7f    // radio donde la "tela" apenas se comba
+            val bumpRadius = cellPx * 1.7f
+            val skirtRadius = bumpRadius * 1.7f
             val maxLift = cellPx * 0.5f
             val maxElevScale = 1.5f
             val restSize = cellPx * 0.90f
@@ -264,7 +234,7 @@ fun GridWallScreen(
                 }
             }
 
-            near.sortByDescending { it.third } // lejos primero, el domo queda arriba
+            near.sortByDescending { it.third }
 
             for ((row, col, dist) in near) {
                 val bmpIndex = if (thumbnails.isNotEmpty()) (row * cols + col) % thumbnails.size else -1
@@ -273,13 +243,10 @@ fun GridWallScreen(
                 val restX = col * cellPx + cellPx / 2f - gridOffsetX
                 val restY = row * cellPx + cellPx / 2f - gridOffsetY
 
-                // Campana suave (gaussiana): 1 en el centro del domo, 0 lejos.
                 val influence = exp((-(dist * dist) / (2f * bumpRadius * bumpRadius)).toDouble()).toFloat()
                 val scale = 1f + (maxElevScale - 1f) * influence
                 val lift = maxLift * influence
 
-                // "Tela" que se comba levemente alrededor de la base del domo,
-                // sin girar: un empuje radial hacia afuera que se apaga en skirtRadius.
                 val dx = restX - focus.x
                 val dy = restY - focus.y
                 val dlen = hypot(dx.toDouble(), dy.toDouble()).toFloat().coerceAtLeast(1f)
@@ -290,9 +257,8 @@ fun GridWallScreen(
 
                 val w = cellPx * scale * 0.90f
                 val drawX = drawXBase
-                val drawY = baseY - lift // se "levanta" hacia arriba
+                val drawY = baseY - lift
 
-                // Sombra suave debajo del domo, como tela empujada desde abajo.
                 if (influence > 0.04f) {
                     drawOval(
                         color = Color.Black.copy(alpha = influence * 0.4f),
@@ -313,8 +279,6 @@ fun GridWallScreen(
                     }
                 }
 
-                // Sombreado tipo esfera: luz arriba-izquierda, penumbra hacia el
-                // borde del domo, para que se vea curvo y no un recorte plano.
                 if (influence > 0.04f) {
                     val brush = Brush.radialGradient(
                         0f to Color.White.copy(alpha = 0.30f * influence),
@@ -358,7 +322,6 @@ fun GridWallScreen(
             }
         }
 
-        // Overlay con el título del "póster" enfocado, como en el video.
         if (selectedPhoto != null) {
             Box(
                 modifier = Modifier
